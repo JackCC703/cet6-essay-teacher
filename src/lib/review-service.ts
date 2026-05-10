@@ -1,7 +1,13 @@
 import OpenAI from "openai";
+import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
 import { z } from "zod";
 
 import { formatZodIssues, parseJsonWithSchema } from "@/lib/ai-json";
+import {
+  createAiClient,
+  getAiApiKey,
+  shouldUseProviderDefaultTemperature,
+} from "@/lib/ai-provider";
 import { createFallbackReview } from "@/lib/fallback-review";
 import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from "@/lib/review-prompt";
 import {
@@ -38,9 +44,9 @@ async function requestReviewJson(
 修复要求：${repairInstruction}`
     : buildReviewUserPrompt(input);
 
-  const completion = await client.chat.completions.create({
-    model: getReviewModel(),
-    temperature: 0.2,
+  const model = getReviewModel();
+  const params: ChatCompletionCreateParamsNonStreaming = {
+    model,
     response_format: { type: "json_object" },
     messages: [
       {
@@ -52,7 +58,13 @@ async function requestReviewJson(
         content: prompt,
       },
     ],
-  });
+  };
+
+  if (!shouldUseProviderDefaultTemperature(model)) {
+    params.temperature = 0.2;
+  }
+
+  const completion = await client.chat.completions.create(params);
 
   const content = completion.choices[0]?.message?.content;
 
@@ -64,13 +76,11 @@ async function requestReviewJson(
 }
 
 export async function reviewEssay(input: ReviewRequest): Promise<EssayReview> {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!getAiApiKey()) {
     return createFallbackReview(input);
   }
 
-  const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  const client = createAiClient();
 
   const firstResponse = await requestReviewJson(client, input);
 

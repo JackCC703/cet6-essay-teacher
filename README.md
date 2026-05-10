@@ -17,11 +17,14 @@ npm run dev
 
 ```bash
 OPENAI_API_KEY=
-AI_MODEL=gpt-4o-mini
-OCR_MODEL=gpt-4o-mini
+OPENAI_BASE_URL=https://api.moonshot.cn/v1
+AI_MODEL=kimi-k2.5
+OCR_MODEL=kimi-k2.5
 ```
 
 未配置 `OPENAI_API_KEY` 时，作文批改接口会走本地演示 fallback；OCR 需要视觉模型 API key。
+
+如果使用 Kimi/Moonshot API，需要配置 OpenAI-compatible base URL。国内平台通常使用 `https://api.moonshot.cn/v1`，国际平台通常使用 `https://api.moonshot.ai/v1`，以你申请 key 的平台为准。
 
 ## 验证
 

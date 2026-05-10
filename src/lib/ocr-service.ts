@@ -1,7 +1,13 @@
 import OpenAI from "openai";
+import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
 import { z } from "zod";
 
 import { formatZodIssues, parseJsonWithSchema } from "@/lib/ai-json";
+import {
+  createAiClient,
+  getAiApiKey,
+  shouldUseProviderDefaultTemperature,
+} from "@/lib/ai-provider";
 import { OCR_SYSTEM_PROMPT, OCR_USER_PROMPT } from "@/lib/ocr-prompt";
 import {
   OcrExtractResultSchema,
@@ -33,9 +39,9 @@ async function requestOcrJson(
 修复要求：${repairInstruction}`
     : OCR_USER_PROMPT;
 
-  const completion = await client.chat.completions.create({
-    model: getOcrModel(),
-    temperature: 0,
+  const model = getOcrModel();
+  const params: ChatCompletionCreateParamsNonStreaming = {
+    model,
     response_format: { type: "json_object" },
     messages: [
       {
@@ -58,7 +64,13 @@ async function requestOcrJson(
         ],
       },
     ],
-  });
+  };
+
+  if (!shouldUseProviderDefaultTemperature(model)) {
+    params.temperature = 0;
+  }
+
+  const completion = await client.chat.completions.create(params);
 
   const content = completion.choices[0]?.message?.content;
 
@@ -72,7 +84,7 @@ async function requestOcrJson(
 export async function extractEssayFromImage(
   file: File,
 ): Promise<OcrExtractResult> {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!getAiApiKey()) {
     return {
       topic: "",
       essay: "",
@@ -83,9 +95,7 @@ export async function extractEssayFromImage(
     };
   }
 
-  const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  const client = createAiClient();
 
   const firstResponse = await requestOcrJson(client, file);
 
