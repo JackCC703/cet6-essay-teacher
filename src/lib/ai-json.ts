@@ -30,6 +30,10 @@ export function parseJsonWithSchema<T>(
   return schema.parse(parsed);
 }
 
+export function parseJsonPayload(text: string): unknown {
+  return JSON.parse(extractJsonPayload(text));
+}
+
 export function formatZodIssues(error: z.ZodError): string {
   return error.issues
     .map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`)

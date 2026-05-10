@@ -2,13 +2,14 @@ import OpenAI from "openai";
 import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
 import { z } from "zod";
 
-import { formatZodIssues, parseJsonWithSchema } from "@/lib/ai-json";
+import { formatZodIssues, parseJsonPayload } from "@/lib/ai-json";
 import {
   createAiClient,
   getAiApiKey,
   shouldUseProviderDefaultTemperature,
 } from "@/lib/ai-provider";
 import { createFallbackReview } from "@/lib/fallback-review";
+import { normalizeEssayReviewPayload } from "@/lib/review-normalizer";
 import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from "@/lib/review-prompt";
 import {
   EssayReviewSchema,
@@ -36,12 +37,16 @@ async function requestReviewJson(
   client: OpenAI,
   input: ReviewRequest,
   repairInstruction?: string,
+  previousResponse?: string,
 ): Promise<string> {
   const prompt = repairInstruction
     ? `${buildReviewUserPrompt(input)}
 
-上一次输出不符合要求，请只修复 JSON，不要改变批改判断。
-修复要求：${repairInstruction}`
+上一次输出不符合 EssayReview JSON 结构。请根据下面的原始输出，只修复字段名、枚举值和缺失字段，不要改变批改判断。
+修复要求：${repairInstruction}
+
+上一次原始输出：
+${previousResponse ?? "无"}`
     : buildReviewUserPrompt(input);
 
   const model = getReviewModel();
@@ -85,9 +90,12 @@ export async function reviewEssay(input: ReviewRequest): Promise<EssayReview> {
   const firstResponse = await requestReviewJson(client, input);
 
   try {
-    return normalizeReview(
-      parseJsonWithSchema(EssayReviewSchema, firstResponse),
+    const normalized = normalizeEssayReviewPayload(
+      parseJsonPayload(firstResponse),
+      input,
     );
+
+    return normalizeReview(EssayReviewSchema.parse(normalized));
   } catch (error) {
     const repairInstruction =
       error instanceof z.ZodError
@@ -97,10 +105,14 @@ export async function reviewEssay(input: ReviewRequest): Promise<EssayReview> {
       client,
       input,
       repairInstruction,
+      firstResponse,
     );
 
-    return normalizeReview(
-      parseJsonWithSchema(EssayReviewSchema, repairedResponse),
+    const normalized = normalizeEssayReviewPayload(
+      parseJsonPayload(repairedResponse),
+      input,
     );
+
+    return normalizeReview(EssayReviewSchema.parse(normalized));
   }
 }
