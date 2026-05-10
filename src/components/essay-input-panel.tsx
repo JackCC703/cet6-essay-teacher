@@ -4,7 +4,7 @@ import { FilePlus2, Loader2, Play, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
 import { ImageUploadPanel } from "@/components/image-upload-panel";
-import { ESSAY_EXAMPLES } from "@/lib/examples";
+import { DEMO_EXAMPLE } from "@/lib/examples";
 import type { OcrExtractResult } from "@/lib/ocr-schema";
 import { countEnglishWords } from "@/lib/score";
 
@@ -16,6 +16,7 @@ type EssayInputPanelProps = {
   onTopicChange: (value: string) => void;
   onEssayChange: (value: string) => void;
   onSubmit: () => void;
+  onUseExample: () => void;
 };
 
 export function EssayInputPanel({
@@ -26,6 +27,7 @@ export function EssayInputPanel({
   onTopicChange,
   onEssayChange,
   onSubmit,
+  onUseExample,
 }: EssayInputPanelProps) {
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
   const wordCount = countEnglishWords(essay);
@@ -152,21 +154,17 @@ export function EssayInputPanel({
           示例作文
         </div>
         <div className="flex flex-wrap gap-2">
-          {ESSAY_EXAMPLES.map((example) => (
-            <button
-              className="rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-ink transition hover:border-focus hover:text-focus disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isSubmitting}
-              key={example.id}
-              onClick={() => {
-                onTopicChange(example.topic);
-                onEssayChange(example.essay);
-                setOcrWarnings([]);
-              }}
-              type="button"
-            >
-              {example.label}
-            </button>
-          ))}
+          <button
+            className="rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-ink transition hover:border-focus hover:text-focus disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isSubmitting}
+            onClick={() => {
+              setOcrWarnings([]);
+              onUseExample();
+            }}
+            type="button"
+          >
+            {DEMO_EXAMPLE.label}
+          </button>
         </div>
       </div>
     </section>

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { EssayInputPanel } from "@/components/essay-input-panel";
 import { ReviewReport } from "@/components/review-report";
+import { DEMO_EXAMPLE } from "@/lib/examples";
 import type { EssayReview } from "@/lib/review-schema";
 
 type ReviewSuccessResponse = {
@@ -74,6 +75,14 @@ export default function HomePage() {
     }
   }
 
+  function handleUseExample() {
+    setTopic(DEMO_EXAMPLE.topic);
+    setEssay(DEMO_EXAMPLE.essay);
+    setReview(DEMO_EXAMPLE.review);
+    setError("");
+    setIsSubmitting(false);
+  }
+
   return (
     <main className="min-h-screen bg-paper px-4 py-4 sm:px-6 lg:px-8">
       <div className="mx-auto grid w-full max-w-[1440px] gap-4 lg:grid-cols-[minmax(340px,0.9fr)_minmax(0,1.1fr)]">
@@ -85,6 +94,7 @@ export default function HomePage() {
             onEssayChange={setEssay}
             onSubmit={handleSubmit}
             onTopicChange={setTopic}
+            onUseExample={handleUseExample}
             topic={topic}
           />
         </div>
