@@ -118,12 +118,17 @@ src/
 报告展示顺序必须固定：
 
 1. 总体评分
-2. 最大失分问题
-3. 扣题分析
-4. 逐句语法批改
-5. 表达升级
-6. 完整改后文章
-7. 修改说明
+2. 官方档位映射
+3. 评分维度拆解
+4. 字数与篇幅诊断
+5. 原文结构诊断
+6. 优先修改顺序
+7. 最大失分问题
+8. 扣题分析
+9. 逐句语法批改
+10. 表达升级
+11. 完整改后文章
+12. 修改说明
 
 ## 5. 用户输入结构
 
@@ -137,9 +142,9 @@ export type ReviewRequest = {
 校验规则：
 
 - `topic` 最少 10 个字符。
-- `essay` 最少 80 个英文单词。
+- `essay` 至少需要输入正文。
 - `essay` 最多 500 个英文单词。
-- 如果字数明显不足，不要拒绝批改，但报告中要指出字数问题，并限制分数。
+- 如果字数低于 150 词，不要拒绝批改，但报告中要指出字数问题，并限制分数。
 
 图片识别结果结构：
 
@@ -175,6 +180,43 @@ export type EssayReview = {
     converted: number; // raw / 15 * 106.5，保留 1 位小数
     level: "low" | "medium" | "high";
     summary: string; // 中文，一句话评价
+  };
+  officialBand: {
+    currentBand: "2" | "5" | "8" | "11" | "14";
+    currentRange: string;
+    currentDescription: string;
+    nextBand: "5" | "8" | "11" | "14" | null;
+    nextRange: string;
+    nextGoal: string;
+  };
+  scoreBreakdown: {
+    dimension: "task_response" | "content_development" | "organization" | "language_accuracy" | "vocabulary_sentence";
+    label: string;
+    level: "weak" | "fair" | "good";
+    comment: string;
+  }[];
+  lengthDiagnosis: {
+    wordCount: number;
+    minWords: number;
+    targetMaxWords: number;
+    status: "too_short" | "in_range" | "over_range";
+    missingWords: number;
+    summary: string;
+    suggestions: string[];
+  };
+  structureDiagnosis: {
+    section: "introduction" | "body_1" | "body_2" | "conclusion";
+    label: string;
+    status: "missing" | "weak" | "ok";
+    finding: string;
+    suggestion: string;
+  }[];
+  revisionPriority: {
+    steps: {
+      order: number;
+      action: string;
+      reason: string;
+    }[];
   };
   majorProblems: {
     title: string;
@@ -239,7 +281,7 @@ converted = raw / 15 * 106.5
 
 - 明显跑题：最高 5 分。
 - 部分跑题：最高 9 分。
-- 字数少于 120 英文词：最高 8 分。
+- 字数少于 150 英文词：最高 8 分，并必须在总体评价中指出字数不足。
 - 字数少于 80 英文词：最高 6 分。
 - 只有模板堆砌、几乎没有回应题目：最高 7 分。
 - 语法错误多但扣题、结构完整时，不要只因为语法扣到极低分。
@@ -271,7 +313,9 @@ converted = raw / 15 * 106.5
 6. 逐句语法批改只列出确实有问题或明显不自然的句子，不要机械列出每一句。
 7. 表达升级只挑 3-6 个最值得改的句子，区分“稳妥版”和“高分版”。
 8. 如果作文跑题、字数不足或模板痕迹明显，必须在最大失分问题里指出。
-9. 必须返回严格 JSON，不要输出 Markdown，不要输出额外解释。
+9. 如果英文词数少于 150，必须在 score.summary 总体评价里明确指出字数不足，并说明已限分。
+10. 必须返回 officialBand、scoreBreakdown、lengthDiagnosis、structureDiagnosis、revisionPriority。
+11. 必须返回严格 JSON，不要输出 Markdown，不要输出额外解释。
 ```
 
 用户提示词模板：
@@ -319,7 +363,7 @@ POST /api/review
 
 ```json
 {
-  "error": "作文至少需要 80 个英文单词。"
+  "error": "请输入作文内容。"
 }
 ```
 

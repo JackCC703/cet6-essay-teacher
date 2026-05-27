@@ -1,12 +1,13 @@
 import { ClipboardCheck } from "lucide-react";
 
 import { ExpressionUpgrades } from "@/components/expression-upgrades";
-import { MajorProblems } from "@/components/major-problems";
 import { NextPractice } from "@/components/next-practice";
-import { RelevanceAnalysis } from "@/components/relevance-analysis";
+import { RevisionPriority } from "@/components/revision-priority";
 import { RevisedEssay } from "@/components/revised-essay";
 import { ScoreCard } from "@/components/score-card";
+import { ScoreBreakdown } from "@/components/score-breakdown";
 import { SentenceCorrections } from "@/components/sentence-corrections";
+import { StructureDiagnosis } from "@/components/structure-diagnosis";
 import type { EssayReview } from "@/lib/review-schema";
 
 type ReviewReportProps = {
@@ -33,8 +34,9 @@ export function ReviewReport({ review }: ReviewReportProps) {
   return (
     <div className="space-y-4">
       <ScoreCard score={review.score} />
-      <MajorProblems problems={review.majorProblems} />
-      <RelevanceAnalysis relevance={review.relevance} />
+      <ScoreBreakdown breakdown={review.scoreBreakdown} />
+      <StructureDiagnosis diagnosis={review.structureDiagnosis} />
+      <RevisionPriority priority={review.revisionPriority} />
       <SentenceCorrections corrections={review.sentenceCorrections} />
       <ExpressionUpgrades upgrades={review.expressionUpgrades} />
       <RevisedEssay revisedEssay={review.revisedEssay} />

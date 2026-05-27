@@ -14,14 +14,117 @@ export const DEMO_EXAMPLE: EssayExample = {
   topic:
     "Directions: For this part, you are allowed 30 minutes to write an essay on the importance of developing independent thinking among college students. You should write at least 150 words but no more than 200 words.",
   essay:
-    "Nowadays, independent thinking is very important for college students. Many students only follow their teachers and classmates, and they do not have their own ideas. I think this is not good for their future.\n\nFirst, independent thinking can help students learn knowledge better. If students only remember what teachers say, they may forget it quickly. But if they think by themselves, they can understand the knowledge deeply. Second, independent thinking is useful for work. In the future, companies need people who can solve problems, not just finish simple tasks.\n\nIn conclusion, college students should develop independent thinking. Schools should give students more chances to discuss and solve problems by themselves.",
+    "Nowadays, independent thinking is very important for college students. Many students only follow their teachers and classmates, and they do not have their own ideas. I think this is not good for their future. When they meet new problems, they may wait for other people's answers instead of making their own judgment.\n\nFirst, independent thinking can help students learn knowledge better. If students only remember what teachers say, they may forget it quickly. But if they think by themselves, they can understand the knowledge deeply and use it in exams or projects. Second, independent thinking is useful for work. In the future, companies need people who can solve problems, not just finish simple tasks. A student who can compare different choices will be more prepared for real challenges.\n\nIn conclusion, college students should develop independent thinking. Schools should give students more chances to discuss and solve problems by themselves. Students should also ask more questions and reflect on their own learning.",
   review: {
     score: {
       raw: 10,
       converted: 71,
       level: "medium",
       summary:
-        "文章基本扣题、结构完整，语法错误不多，但论证展开偏浅，表达比较普通。",
+        "文章结构完整，语法错误不多，但论证展开偏浅，表达比较普通。扣题方面：文章基本回应题目要求。",
+    },
+    officialBand: {
+      currentBand: "11",
+      currentRange: "10-12 分",
+      currentDescription:
+        "切题，表达思想清楚，文字连贯，但有少量语言错误。",
+      nextBand: "14",
+      nextRange: "13-15 分",
+      nextGoal:
+        "减少基础表达和重复句式，补强原因链与段落衔接，让文章更通顺完整。",
+    },
+    scoreBreakdown: [
+      {
+        dimension: "task_response",
+        label: "扣题与任务完成",
+        level: "good",
+        comment: "能稳定回应 independent thinking 对大学生的重要性。",
+      },
+      {
+        dimension: "content_development",
+        label: "内容展开",
+        level: "fair",
+        comment: "理由清楚，但校园例子和因果解释仍然偏浅。",
+      },
+      {
+        dimension: "organization",
+        label: "结构连贯",
+        level: "fair",
+        comment: "三段式完整，但第二个主体理由可以独立成段，层次会更清楚。",
+      },
+      {
+        dimension: "language_accuracy",
+        label: "语言准确性",
+        level: "fair",
+        comment: "主要句子能读懂，但存在搭配和指代表达不够自然的问题。",
+      },
+      {
+        dimension: "vocabulary_sentence",
+        label: "词汇句式质量",
+        level: "fair",
+        comment: "高频表达重复，缺少更自然的替换和概括句。",
+      },
+    ],
+    lengthDiagnosis: {
+      wordCount: 161,
+      minWords: 150,
+      targetMaxWords: 200,
+      status: "in_range",
+      missingWords: 0,
+      summary: "当前约 161 词，处在六级作文 150-200 词的建议范围内。",
+      suggestions: [
+        "保持当前篇幅，不需要继续堆字数。",
+        "把新增内容优先放在主体段的原因、例子和结果说明里。",
+      ],
+    },
+    structureDiagnosis: [
+      {
+        section: "introduction",
+        label: "开头",
+        status: "ok",
+        finding: "开头能引出主题并表明问题。",
+        suggestion: "把 I think this is not good 改成更正式、具体的影响句。",
+      },
+      {
+        section: "body_1",
+        label: "主体段 1",
+        status: "ok",
+        finding: "第一个理由围绕学习理解展开。",
+        suggestion: "补出具体学习场景，如课堂讨论、项目或考试应用。",
+      },
+      {
+        section: "body_2",
+        label: "主体段 2",
+        status: "weak",
+        finding: "第二个理由和第一个理由挤在同一段，层次不够醒目。",
+        suggestion: "把 future work 单独成段，并写出 analyze problems 的结果。",
+      },
+      {
+        section: "conclusion",
+        label: "结尾",
+        status: "ok",
+        finding: "结尾有建议并回到 independent thinking。",
+        suggestion: "最后一句再提升到 active learners 或 future development。",
+      },
+    ],
+    revisionPriority: {
+      steps: [
+        {
+          order: 1,
+          action: "先把第二个理由独立成段",
+          reason: "两个主体理由分开后，结构层次和阅卷印象会更清楚。",
+        },
+        {
+          order: 2,
+          action: "给每个理由补一个具体场景",
+          reason: "例子和结果能把文章从抽象判断推到更高档位。",
+        },
+        {
+          order: 3,
+          action: "最后替换重复表达",
+          reason: "在内容完整后，词汇和句式升级才更有效。",
+        },
+      ],
     },
     majorProblems: [
       {
@@ -72,37 +175,7 @@ export const DEMO_EXAMPLE: EssayExample = {
       explanation:
         "文章扣题稳定，能够回应题目要求；主要问题不在跑题，而在内容展开和表达质量还停留在基础层面。",
     },
-    sentenceCorrections: [
-      {
-        original:
-          "Many students only follow their teachers and classmates, and they do not have their own ideas.",
-        issueType: "other",
-        issues: ["表达略口语化，own ideas 的指向比较宽泛。"],
-        corrected:
-          "Many students simply follow their teachers and classmates instead of forming their own judgments.",
-        explanation:
-          "forming their own judgments 更贴合 independent thinking，也比 have their own ideas 更具体。",
-      },
-      {
-        original: "I think this is not good for their future.",
-        issueType: "other",
-        issues: ["表达过于简单，this 指代不够明确。"],
-        corrected:
-          "This habit may weaken their ability to solve problems in the future.",
-        explanation:
-          "用 this habit 明确指代前文问题，并补出具体影响，论证更有力度。",
-      },
-      {
-        original:
-          "But if they think by themselves, they can understand the knowledge deeply.",
-        issueType: "preposition",
-        issues: ["think by themselves 不如 think independently 自然。"],
-        corrected:
-          "However, if they think independently, they can understand knowledge more deeply.",
-        explanation:
-          "think independently 是更自然的搭配；more deeply 比 deeply 更符合比较语境。",
-      },
-    ],
+    sentenceCorrections: [],
     expressionUpgrades: [
       {
         original: "Nowadays, independent thinking is very important for college students.",

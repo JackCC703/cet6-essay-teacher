@@ -1,3 +1,8 @@
+export const CET6_MIN_WORDS = 150;
+export const CET6_TARGET_MAX_WORDS = 200;
+export const SEVERE_SHORT_ESSAY_WORDS = 80;
+export const MAX_REVIEW_WORDS = 500;
+
 export function countEnglishWords(text: string): number {
   const matches = text.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g);
   return matches?.length ?? 0;

@@ -6,6 +6,8 @@ import { useRef, useState } from "react";
 import type { OcrExtractResult } from "@/lib/ocr-schema";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const OCR_IMAGE_MAX_LONG_EDGE = 1800;
+const OCR_IMAGE_JPEG_QUALITY = 0.78;
 const ACCEPTED_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -25,6 +27,18 @@ type OcrErrorResponse = {
   error: string;
 };
 
+type PreparedOcrImage = {
+  file: File;
+  originalSize: number;
+  uploadSize: number;
+  originalWidth?: number;
+  originalHeight?: number;
+  uploadWidth?: number;
+  uploadHeight?: number;
+  compressed: boolean;
+  elapsedMs: number;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -35,6 +49,155 @@ function isOcrSuccessResponse(value: unknown): value is OcrSuccessResponse {
 
 function isOcrErrorResponse(value: unknown): value is OcrErrorResponse {
   return isRecord(value) && typeof value.error === "string";
+}
+
+function createRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes}B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)}KB`;
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(2)}MB`;
+}
+
+function getJpegFileName(fileName: string): string {
+  const trimmedName = fileName.trim();
+  const extensionIndex = trimmedName.lastIndexOf(".");
+  const baseName =
+    extensionIndex > 0 ? trimmedName.slice(0, extensionIndex) : trimmedName;
+
+  return `${baseName || "essay"}-ocr.jpg`;
+}
+
+function loadImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const imageUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(imageUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(imageUrl);
+      reject(new Error("图片读取失败，请重新选择图片。"));
+    };
+    image.src = imageUrl;
+  });
+}
+
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  quality: number,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+
+        reject(new Error("图片压缩失败，将无法上传压缩图。"));
+      },
+      "image/jpeg",
+      quality,
+    );
+  });
+}
+
+function createUncompressedOcrImage(
+  file: File,
+  startedAt: number,
+): PreparedOcrImage {
+  return {
+    file,
+    originalSize: file.size,
+    uploadSize: file.size,
+    compressed: false,
+    elapsedMs: performance.now() - startedAt,
+  };
+}
+
+async function prepareImageForOcr(file: File): Promise<PreparedOcrImage> {
+  const startedAt = performance.now();
+  const image = await loadImage(file);
+  const originalWidth = image.naturalWidth || image.width;
+  const originalHeight = image.naturalHeight || image.height;
+
+  if (originalWidth <= 0 || originalHeight <= 0) {
+    return createUncompressedOcrImage(file, startedAt);
+  }
+
+  const scale = Math.min(
+    1,
+    OCR_IMAGE_MAX_LONG_EDGE / Math.max(originalWidth, originalHeight),
+  );
+  const targetWidth = Math.max(1, Math.round(originalWidth * scale));
+  const targetHeight = Math.max(1, Math.round(originalHeight * scale));
+  const shouldResize = scale < 1;
+  const shouldReencode =
+    file.type !== "image/jpeg" && file.type !== "image/jpg";
+
+  if (!shouldResize && !shouldReencode) {
+    return {
+      file,
+      originalSize: file.size,
+      uploadSize: file.size,
+      originalWidth,
+      originalHeight,
+      uploadWidth: originalWidth,
+      uploadHeight: originalHeight,
+      compressed: false,
+      elapsedMs: performance.now() - startedAt,
+    };
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    return createUncompressedOcrImage(file, startedAt);
+  }
+
+  context.imageSmoothingQuality = "high";
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, targetWidth, targetHeight);
+  context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+  const blob = await canvasToBlob(canvas, OCR_IMAGE_JPEG_QUALITY);
+  const compressedFile = new File([blob], getJpegFileName(file.name), {
+    lastModified: file.lastModified,
+    type: "image/jpeg",
+  });
+  const shouldUseCompressed = shouldResize || compressedFile.size < file.size;
+  const uploadFile = shouldUseCompressed ? compressedFile : file;
+
+  return {
+    file: uploadFile,
+    originalSize: file.size,
+    uploadSize: uploadFile.size,
+    originalWidth,
+    originalHeight,
+    uploadWidth: shouldUseCompressed ? targetWidth : originalWidth,
+    uploadHeight: shouldUseCompressed ? targetHeight : originalHeight,
+    compressed: shouldUseCompressed,
+    elapsedMs: performance.now() - startedAt,
+  };
 }
 
 export function ImageUploadPanel({ onExtracted }: ImageUploadPanelProps) {
@@ -57,16 +220,53 @@ export function ImageUploadPanel({ onExtracted }: ImageUploadPanelProps) {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
+    const requestId = createRequestId();
     setIsLoading(true);
 
     try {
+      const totalStartedAt = performance.now();
+      let preparedImage: PreparedOcrImage;
+
+      try {
+        preparedImage = await prepareImageForOcr(file);
+      } catch (compressionError) {
+        console.warn(
+          `[ocr:${requestId}] 图片压缩失败，降级上传原图。`,
+          compressionError,
+        );
+        preparedImage = createUncompressedOcrImage(file, totalStartedAt);
+      }
+
+      console.info(
+        `[ocr:${requestId}] 图片准备完成：${formatBytes(
+          preparedImage.originalSize,
+        )} -> ${formatBytes(preparedImage.uploadSize)}，` +
+          `尺寸 ${preparedImage.originalWidth ?? "unknown"}x${
+            preparedImage.originalHeight ?? "unknown"
+          } -> ${preparedImage.uploadWidth ?? "unknown"}x${
+            preparedImage.uploadHeight ?? "unknown"
+          }，压缩=${preparedImage.compressed}，耗时=${Math.round(
+            preparedImage.elapsedMs,
+          )}ms`,
+      );
+
+      const formData = new FormData();
+      formData.append("file", preparedImage.file);
+      formData.append("requestId", requestId);
+
+      const fetchStartedAt = performance.now();
       const response = await fetch("/api/ocr", {
         method: "POST",
         body: formData,
       });
       const data: unknown = await response.json();
+      const fetchElapsedMs = Math.round(performance.now() - fetchStartedAt);
+
+      console.info(
+        `[ocr:${requestId}] OCR 请求完成：status=${response.status}，请求耗时=${fetchElapsedMs}ms，总耗时=${Math.round(
+          performance.now() - totalStartedAt,
+        )}ms`,
+      );
 
       if (!response.ok) {
         throw new Error(

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { countEnglishWords } from "@/lib/score";
+import { countEnglishWords, MAX_REVIEW_WORDS } from "@/lib/score";
 
 const halfPointScoreSchema = z
   .number()
@@ -19,8 +19,8 @@ export const ReviewRequestSchema = z.object({
     .string()
     .trim()
     .min(1, "请输入作文内容。")
-    .refine((value) => countEnglishWords(value) <= 500, {
-      message: "作文最多 500 个英文单词。",
+    .refine((value) => countEnglishWords(value) <= MAX_REVIEW_WORDS, {
+      message: `作文最多 ${MAX_REVIEW_WORDS} 个英文单词。`,
     }),
 });
 
@@ -30,6 +30,62 @@ export const EssayReviewSchema = z.object({
     converted: z.number().min(0).max(106.5),
     level: z.enum(["low", "medium", "high"]),
     summary: z.string().min(1),
+  }),
+  officialBand: z.object({
+    currentBand: z.enum(["2", "5", "8", "11", "14"]),
+    currentRange: z.string().min(1),
+    currentDescription: z.string().min(1),
+    nextBand: z.enum(["5", "8", "11", "14"]).nullable(),
+    nextRange: z.string().min(1),
+    nextGoal: z.string().min(1),
+  }),
+  scoreBreakdown: z
+    .array(
+      z.object({
+        dimension: z.enum([
+          "task_response",
+          "content_development",
+          "organization",
+          "language_accuracy",
+          "vocabulary_sentence",
+        ]),
+        label: z.string().min(1),
+        level: z.enum(["weak", "fair", "good"]),
+        comment: z.string().min(1),
+      }),
+    )
+    .length(5),
+  lengthDiagnosis: z.object({
+    wordCount: z.number().int().min(0),
+    minWords: z.number().int().min(1),
+    targetMaxWords: z.number().int().min(1),
+    status: z.enum(["too_short", "in_range", "over_range"]),
+    missingWords: z.number().int().min(0),
+    summary: z.string().min(1),
+    suggestions: z.array(z.string().min(1)).min(1),
+  }),
+  structureDiagnosis: z
+    .array(
+      z.object({
+        section: z.enum(["introduction", "body_1", "body_2", "conclusion"]),
+        label: z.string().min(1),
+        status: z.enum(["missing", "weak", "ok"]),
+        finding: z.string().min(1),
+        suggestion: z.string().min(1),
+      }),
+    )
+    .length(4),
+  revisionPriority: z.object({
+    steps: z
+      .array(
+        z.object({
+          order: z.number().int().min(1),
+          action: z.string().min(1),
+          reason: z.string().min(1),
+        }),
+      )
+      .min(1)
+      .max(5),
   }),
   majorProblems: z
     .array(

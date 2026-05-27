@@ -14,8 +14,32 @@ import {
   type OcrExtractResult,
 } from "@/lib/ocr-schema";
 
+type OcrServiceOptions = {
+  requestId?: string;
+};
+
 function getOcrModel(): string {
   return process.env.OCR_MODEL || process.env.AI_MODEL || "gpt-4o-mini";
+}
+
+function getLogPrefix(requestId: string | undefined): string {
+  return requestId ? `[ocr:${requestId}]` : "[ocr]";
+}
+
+function formatDuration(milliseconds: number): string {
+  return `${Math.round(milliseconds)}ms`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes}B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)}KB`;
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(2)}MB`;
 }
 
 async function fileToDataUrl(file: File): Promise<string> {
@@ -28,10 +52,10 @@ async function fileToDataUrl(file: File): Promise<string> {
 
 async function requestOcrJson(
   client: OpenAI,
-  file: File,
+  imageUrl: string,
+  requestId: string | undefined,
   repairInstruction?: string,
 ): Promise<string> {
-  const imageUrl = await fileToDataUrl(file);
   const prompt = repairInstruction
     ? `${OCR_USER_PROMPT}
 
@@ -70,9 +94,23 @@ async function requestOcrJson(
     params.temperature = 0;
   }
 
+  const startedAt = performance.now();
+  console.info(
+    `${getLogPrefix(requestId)} model request started model=${model} repair=${Boolean(
+      repairInstruction,
+    )}`,
+  );
+
   const completion = await client.chat.completions.create(params);
+  const elapsedMs = performance.now() - startedAt;
 
   const content = completion.choices[0]?.message?.content;
+
+  console.info(
+    `${getLogPrefix(requestId)} model request completed elapsed=${formatDuration(
+      elapsedMs,
+    )} responseChars=${content?.length ?? 0}`,
+  );
 
   if (!content) {
     throw new Error("模型没有返回 OCR 结果。");
@@ -83,8 +121,14 @@ async function requestOcrJson(
 
 export async function extractEssayFromImage(
   file: File,
+  options: OcrServiceOptions = {},
 ): Promise<OcrExtractResult> {
+  const requestId = options.requestId;
+  const totalStartedAt = performance.now();
+
   if (!getAiApiKey()) {
+    console.warn(`${getLogPrefix(requestId)} missing AI API key, skip OCR`);
+
     return {
       topic: "",
       essay: "",
@@ -97,21 +141,56 @@ export async function extractEssayFromImage(
 
   const client = createAiClient();
 
-  const firstResponse = await requestOcrJson(client, file);
+  const dataUrlStartedAt = performance.now();
+  const imageUrl = await fileToDataUrl(file);
+
+  console.info(
+    `${getLogPrefix(requestId)} data URL ready fileSize=${formatBytes(
+      file.size,
+    )} dataUrlChars=${imageUrl.length} elapsed=${formatDuration(
+      performance.now() - dataUrlStartedAt,
+    )}`,
+  );
+
+  const firstResponse = await requestOcrJson(client, imageUrl, requestId);
+  const parseStartedAt = performance.now();
 
   try {
-    return parseJsonWithSchema(OcrExtractResultSchema, firstResponse);
+    const result = parseJsonWithSchema(OcrExtractResultSchema, firstResponse);
+
+    console.info(
+      `${getLogPrefix(requestId)} first response parsed elapsed=${formatDuration(
+        performance.now() - parseStartedAt,
+      )} total=${formatDuration(performance.now() - totalStartedAt)}`,
+    );
+
+    return result;
   } catch (error) {
     const repairInstruction =
       error instanceof z.ZodError
         ? formatZodIssues(error)
         : "返回内容不是合法 JSON。";
+    const repairStartedAt = performance.now();
+
+    console.warn(
+      `${getLogPrefix(requestId)} first response parse failed elapsed=${formatDuration(
+        performance.now() - parseStartedAt,
+      )}; requesting repair`,
+    );
     const repairedResponse = await requestOcrJson(
       client,
-      file,
+      imageUrl,
+      requestId,
       repairInstruction,
     );
+    const result = parseJsonWithSchema(OcrExtractResultSchema, repairedResponse);
 
-    return parseJsonWithSchema(OcrExtractResultSchema, repairedResponse);
+    console.info(
+      `${getLogPrefix(requestId)} repaired response parsed elapsed=${formatDuration(
+        performance.now() - repairStartedAt,
+      )} total=${formatDuration(performance.now() - totalStartedAt)}`,
+    );
+
+    return result;
   }
 }

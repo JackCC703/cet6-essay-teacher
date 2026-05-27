@@ -13,7 +13,7 @@ const issueTypeLabel: Record<
   tense: "时态",
   agreement: "主谓一致",
   punctuation: "标点",
-  other: "其他",
+  other: "其他语法",
 };
 
 type SentenceCorrectionsProps = {
@@ -31,7 +31,7 @@ export function SentenceCorrections({
       </div>
       {corrections.length === 0 ? (
         <p className="mt-3 text-sm leading-6 text-muted">
-          没有明显需要单独列出的语法错误。
+          没有发现明确语法错误。
         </p>
       ) : (
         <div className="mt-4 space-y-3">

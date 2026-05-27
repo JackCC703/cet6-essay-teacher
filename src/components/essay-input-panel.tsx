@@ -6,7 +6,13 @@ import { useState } from "react";
 import { ImageUploadPanel } from "@/components/image-upload-panel";
 import { DEMO_EXAMPLE } from "@/lib/examples";
 import type { OcrExtractResult } from "@/lib/ocr-schema";
-import { countEnglishWords } from "@/lib/score";
+import {
+  CET6_MIN_WORDS,
+  CET6_TARGET_MAX_WORDS,
+  countEnglishWords,
+  MAX_REVIEW_WORDS,
+  SEVERE_SHORT_ESSAY_WORDS,
+} from "@/lib/score";
 
 type EssayInputPanelProps = {
   topic: string;
@@ -31,9 +37,11 @@ export function EssayInputPanel({
 }: EssayInputPanelProps) {
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
   const wordCount = countEnglishWords(essay);
-  const isUnderHardLimit = wordCount > 0 && wordCount < 80;
-  const isUnderSuggestedLimit = wordCount >= 80 && wordCount < 120;
-  const isOverLimit = wordCount > 500;
+  const isUnderHardLimit = wordCount > 0 && wordCount < SEVERE_SHORT_ESSAY_WORDS;
+  const isUnderSuggestedLimit =
+    wordCount >= SEVERE_SHORT_ESSAY_WORDS && wordCount < CET6_MIN_WORDS;
+  const isOverSuggestedRange = wordCount > CET6_TARGET_MAX_WORDS;
+  const isOverLimit = wordCount > MAX_REVIEW_WORDS;
 
   function handleExtracted(result: OcrExtractResult) {
     if (result.topic.trim()) {
@@ -54,7 +62,7 @@ export function EssayInputPanel({
           AI 六级作文老师
         </h1>
         <p className="mt-1 text-sm leading-6 text-muted">
-          先判断扣题，再给分、指出最大失分点并给出六级可迁移修改。
+          先判断扣题，再给分，并给出六级可迁移修改。
         </p>
       </div>
 
@@ -120,7 +128,10 @@ export function EssayInputPanel({
               <span className="ml-2 text-danger">少于 80 词会明显限分</span>
             ) : null}
             {isUnderSuggestedLimit ? (
-              <span className="ml-2 text-warning">少于 120 词会限分</span>
+              <span className="ml-2 text-warning">少于 150 词会限分</span>
+            ) : null}
+            {isOverSuggestedRange && !isOverLimit ? (
+              <span className="ml-2 text-warning">建议控制在 150-200 词</span>
             ) : null}
             {isOverLimit ? (
               <span className="ml-2 text-danger">超过 500 词</span>
